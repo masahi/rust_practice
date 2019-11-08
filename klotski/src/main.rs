@@ -1,5 +1,5 @@
-fn find<T>(pred: impl FnMut(&&T) -> bool, vec: &Vec<T>) -> Option<&T> {
-    vec.iter().find(pred)
+fn find_index<T>(pred: impl FnMut(&T) -> bool, vec: &Vec<T>) -> Option<usize> {
+    vec.iter().position(pred)
 }
 
 fn flat_map<T, F>(rel: F) -> impl Fn(&Vec<T>) -> Vec<T>
@@ -12,17 +12,15 @@ where
 fn solve<T, F, P>(r: F, p: P, a: T) -> T
 where
     F: Fn(&T) -> Vec<T> + Copy,
-    P: FnMut(&&T) -> bool + Copy,
-    T: Clone
+    P: FnMut(&T) -> bool + Copy,
 {
-    fn iter<T, F, P>(configs: Vec<T>, r: F, p: P) -> T
+    fn iter<T, F, P>(mut configs: Vec<T>, r: F, p: P) -> T
     where
         F: Fn(&T) -> Vec<T> + Copy,
-        P: FnMut(&&T) -> bool + Copy,
-        T: Clone
+        P: FnMut(&T) -> bool + Copy,
     {
-        match find(p, &configs) {
-            Some(x) => (*x).clone(),
+        match find_index(p, &configs) {
+            Some(ind) => configs.remove(ind),
             None => iter(flat_map(r)(&configs), r, p),
         }
     }
@@ -36,6 +34,6 @@ fn main() {
     for elem in out.iter() {
         println!("{}", elem);
     }
-    let sol = solve(near, |&&x| x == 12, 0);
+    let sol = solve(near, |&x| x == 12, 0);
     println!("sol {}", sol);
 }
