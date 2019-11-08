@@ -27,6 +27,34 @@ where
     iter(vec![a], r, p)
 }
 
+fn solve_path<T, F, P>(r: F, mut p: P, a: T) -> Vec<T>
+where
+    F: Fn(&T) -> Vec<T> + Copy,
+    P: FnMut(&T) -> bool + Copy,
+    T: Clone
+{
+    let path_rel = move |path: &Vec<T>| {
+        match path.last() {
+            None => vec![],
+            Some(last) => {
+                let new_confs = r(last);
+                new_confs.into_iter().map(|conf| {
+                    let mut p = path.clone();
+                    p.push(conf);
+                    p
+                })
+                .collect()
+            }
+        }
+    };
+    let path_prop = move |path: &Vec<T>| {
+        match path.last() {
+            None => false,
+            Some(last) => p(last)
+        }
+    };
+    solve(path_rel, path_prop, vec![a])
+}
 fn main() {
     let near = |n: &i32| vec![*n - 2, *n - 1, *n, *n + 1, *n + 2];
     let new_rel = flat_map(near);
@@ -34,6 +62,9 @@ fn main() {
     for elem in out.iter() {
         println!("{}", elem);
     }
+    println!("{:?}", out);
     let sol = solve(near, |&x| x == 12, 0);
     println!("sol {}", sol);
+    let sol_path = solve_path(near, |&x| x == 12, 0);
+    println!("{:?}", sol_path);
 }
