@@ -175,56 +175,108 @@ enum PieceKind {
     X,
 }
 
-type Piece = (PieceKind, u8);
+#[derive(Copy, Clone, PartialEq, Eq)]
+struct Piece {
+    kind: PieceKind,
+    index: u8,
+}
 
-fn string_of_piece((k, ind): Piece) -> String {
-    let ch = match k {
+fn string_of_piece(Piece { kind, index }: Piece) -> String {
+    let ch = match kind {
         PieceKind::S => "S",
         PieceKind::H => "H",
         PieceKind::C => "C",
         PieceKind::V => "V",
         PieceKind::X => "X",
     };
-    format!("({}, {})", ch, ind)
+    format!("({}, {})", ch, index)
 }
 
-static X: Piece = (PieceKind::X, 0);
-static S: Piece = (PieceKind::S, 0);
-static H: Piece = (PieceKind::H, 0);
-static C0: Piece = (PieceKind::C, 0);
-static C1: Piece = (PieceKind::C, 1);
-static C2: Piece = (PieceKind::C, 2);
-static C3: Piece = (PieceKind::C, 3);
-static V0: Piece = (PieceKind::V, 0);
-static V1: Piece = (PieceKind::V, 1);
-static V2: Piece = (PieceKind::V, 2);
-static V3: Piece = (PieceKind::V, 3);
+static X: Piece = Piece {
+    kind: PieceKind::X,
+    index: 0,
+};
+static S: Piece = Piece {
+    kind: PieceKind::S,
+    index: 0,
+};
+static H: Piece = Piece {
+    kind: PieceKind::H,
+    index: 0,
+};
+static C0: Piece = Piece {
+    kind: PieceKind::C,
+    index: 0,
+};
+static C1: Piece = Piece {
+    kind: PieceKind::C,
+    index: 1,
+};
+static C2: Piece = Piece {
+    kind: PieceKind::C,
+    index: 2,
+};
+static C3: Piece = Piece {
+    kind: PieceKind::C,
+    index: 3,
+};
+static V0: Piece = Piece {
+    kind: PieceKind::V,
+    index: 0,
+};
+static V1: Piece = Piece {
+    kind: PieceKind::V,
+    index: 1,
+};
+static V2: Piece = Piece {
+    kind: PieceKind::V,
+    index: 2,
+};
+static V3: Piece = Piece {
+    kind: PieceKind::V,
+    index: 3,
+};
 
-static ALL_PIECES: [Piece; 10] = [S, H, C0, C1, C2, C3, V0, V1, V2, V3];
+impl Ord for Piece {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let Piece {
+            kind: k1,
+            index: ind1,
+        } = self;
+        let Piece {
+            kind: k2,
+            index: ind2,
+        } = other;
+        let kind_to_int = |k| match k {
+            PieceKind::S => 5,
+            PieceKind::H => 4,
+            PieceKind::C => 3,
+            PieceKind::V => 2,
+            PieceKind::X => 1,
+        };
+        if k1 == k2 {
+            ind1.cmp(&ind2)
+        } else {
+            kind_to_int(*k1).cmp(&kind_to_int(*k2))
+        }
+    }
+}
+
+impl PartialOrd for Piece {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 struct Board([[Piece; 4]; 5]);
 impl Ord for Board {
     fn cmp(&self, other: &Self) -> Ordering {
-        let compare_piece = |(k1, ind1): Piece, (k2, ind2): Piece| {
-            let kind_to_int = |k| match k {
-                PieceKind::S => 5,
-                PieceKind::H => 4,
-                PieceKind::C => 3,
-                PieceKind::V => 2,
-                PieceKind::X => 1,
-            };
-            if k1 == k2 {
-                ind1.cmp(&ind2)
-            } else {
-                kind_to_int(k1).cmp(&kind_to_int(k2))
-            }
-        };
         let b1 = self.0;
         let b2 = other.0;
         for i in 0..5 {
             for j in 0..4 {
-                let c = compare_piece(b1[i][j], b2[i][j]);
+                let c = b1[i][j].cmp(&b2[i][j]);
                 if c != Ordering::Equal {
                     return c;
                 }
@@ -243,24 +295,32 @@ impl PartialOrd for Board {
 #[derive(Clone, Copy, PartialEq)]
 struct Direction(i8, i8);
 
-struct Move(Piece, Direction, Board);
+#[derive(Clone, Copy, PartialEq)]
+struct Pos(u8, u8);
+
+#[derive(Clone, PartialEq)]
+struct Move {
+    piece: Piece,
+    next_occupied_pos: Vec<(u8, u8)>,
+    next_vacant_pos: Vec<(u8, u8)>,
+}
 
 #[derive(Copy, Clone)]
 struct Klotski;
 
-fn move_piece(board: &Board, p: Piece, dir: Direction) -> Option<Board> {
+fn move_piece(board: &Board, piece: Piece, pos: Pos, dir: Direction) -> Option<Move> {
     let vec_diff = |v1: &Vec<(u8, u8)>, v2: &Vec<(u8, u8)>| -> Vec<(u8, u8)> {
         v1.iter()
             .filter(|elt| v2.iter().find(|el2| el2 == elt).is_none())
             .cloned()
             .collect()
     };
-    let occupied_pos = |i, j| match p {
-        (PieceKind::S, _) => vec![(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)],
-        (PieceKind::H, _) => vec![(i, j), (i, j + 1)],
-        (PieceKind::V, _) => vec![(i, j), (i + 1, j)],
-        (PieceKind::C, _) => vec![(i, j)],
-        _ => vec![],
+    let occupied_pos = |i, j| match piece.kind {
+        PieceKind::S => vec![(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)],
+        PieceKind::H => vec![(i, j), (i, j + 1)],
+        PieceKind::V => vec![(i, j), (i + 1, j)],
+        PieceKind::C => vec![(i, j)],
+        _ => unreachable!(),
     };
     let diff_occupied_pos = |i, j| {
         let current = occupied_pos(i, j);
@@ -275,31 +335,15 @@ fn move_piece(board: &Board, p: Piece, dir: Direction) -> Option<Board> {
             .iter()
             .all(|(i, j)| in_bound(*i, *j) && board.0[*i as usize][*j as usize] == X)
     };
-    let find_pos = || {
-        for i in 0..5 {
-            for j in 0..4 {
-                if board.0[i][j] == p {
-                    return Some((i as u8, j as u8));
-                }
-            }
-        }
-        None
-    };
     let is_dir_safe = |i, j| !((i == 0 && dir.0 == -1) || (j == 0 && dir.1 == -1));
-    if let Some((i, j)) = find_pos() {
-        if !is_dir_safe(i, j) {
-            return None;
-        }
-        let (next_occupied_pos, next_vacant_pos) = diff_occupied_pos(i, j);
+    if !is_dir_safe(pos.0, pos.1) {
+        let (next_occupied_pos, next_vacant_pos) = diff_occupied_pos(pos.0, pos.1);
         if can_move(&next_occupied_pos) {
-            let mut board_copy = board.clone();
-            next_occupied_pos
-                .iter()
-                .for_each(|(i, j)| board_copy.0[*i as usize][*j as usize] = p);
-            next_vacant_pos
-                .iter()
-                .for_each(|(i, j)| board_copy.0[*i as usize][*j as usize] = X);
-            Some(board_copy)
+            Some(Move {
+                piece,
+                next_occupied_pos,
+                next_vacant_pos,
+            })
         } else {
             None
         }
@@ -308,12 +352,42 @@ fn move_piece(board: &Board, p: Piece, dir: Direction) -> Option<Board> {
     }
 }
 
+fn get_piece_positions(board: &Board) -> Vec<(Piece, Pos)> {
+    let mut pairs = Vec::new();
+    let mut seen = Set::new();
+    for i in 0..5 {
+        for j in 0..4 {
+            let piece = board.0[i][j];
+            if piece != X && !seen.contains(&piece) {
+                pairs.push((piece, Pos(i as u8, j as u8)));
+                seen.insert(piece);
+            }
+        }
+    }
+    pairs
+}
+
 impl Puzzle<Board, Move> for Klotski {
-    fn apply_move(&self, _: &Board, mv: &Move) -> Board {
-        mv.2.clone()
+    fn apply_move(
+        &self,
+        board: &Board,
+        Move {
+            piece,
+            next_occupied_pos,
+            next_vacant_pos,
+        }: &Move,
+    ) -> Board {
+        let mut board_copy = board.clone();
+        next_occupied_pos
+            .iter()
+            .for_each(|(i, j)| board_copy.0[*i as usize][*j as usize] = *piece);
+        next_vacant_pos
+            .iter()
+            .for_each(|(i, j)| board_copy.0[*i as usize][*j as usize] = X);
+        board_copy
     }
     fn possible_move(&self, b: &Board) -> Vec<Move> {
-        let get_moves = |p: &Piece| -> Vec<Move> {
+        let get_moves = |(p, pos): (Piece, Pos)| -> Vec<Move> {
             let directions = vec![
                 Direction(0, 1),
                 Direction(0, -1),
@@ -322,16 +396,13 @@ impl Puzzle<Board, Move> for Klotski {
             ];
             directions
                 .into_iter()
-                .filter_map(|dir| match move_piece(b, *p, dir) {
-                    None => None,
-                    Some(b) => {
-                        //println!("move {} to ({}, {})", string_of_piece(*p), dir.0, dir.1);
-                        Some(Move(*p, dir, b))
-                    }
-                })
+                .filter_map(|dir| move_piece(b, p, pos, dir))
                 .collect()
         };
-        ALL_PIECES.iter().flat_map(get_moves).collect()
+        get_piece_positions(b)
+            .into_iter()
+            .flat_map(get_moves)
+            .collect()
     }
     fn is_final(&self, b: &Board) -> bool {
         b.0[3][1] == S && b.0[3][2] == S && b.0[4][1] == S && b.0[3][2] == S
@@ -378,7 +449,7 @@ fn main() {
         [X, X, X, X],
     ];
 
-    let sol = solve_klotski(Board(initial_board));
+    let sol = solve_klotski(Board(trivial_board));
     //sol.iter().for_each(print_board)
     print_board(&sol);
 }
