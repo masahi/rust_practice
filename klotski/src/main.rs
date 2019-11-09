@@ -59,7 +59,7 @@ where
     P: FnMut(&T) -> bool + Copy,
     T: Clone + Ord,
 {
-    fn iter<T, F, P>(r: F, p: P, s: Set<T>, mut l: Vec<T>) -> T
+    fn iter<T, F, P>(r: F, p: P, s: Set<T>, mut l: Vec<T>, round: usize) -> T
     where
         F: Fn(&T) -> Vec<T> + Copy,
         P: FnMut(&T) -> bool + Copy,
@@ -69,13 +69,14 @@ where
             Some(ind) => l.remove(ind),
             None => {
                 let (s, l) = archive_map(r, (s, l));
-                iter(r, p, s, l)
+                println!("Round {}, frontier size {}", round, l.len());
+                iter(r, p, s, l, round + 1)
             }
         }
     }
     let mut init_set = Set::new();
     init_set.insert(a.clone());
-    iter(r, p, init_set, vec![a])
+    iter(r, p, init_set, vec![a], 0)
 }
 
 fn solve_path<T, F, P>(r: F, mut p: P, a: T) -> Vec<T>
@@ -227,16 +228,14 @@ impl PartialOrd for Board {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-struct Direction {
-    drow: u8,
-    dcol: u8,
-}
+struct Direction(i8, i8);
+
 struct Move(Piece, Direction, Board);
 
 #[derive(Copy, Clone)]
 struct Klotski;
 
-fn move_piece(board: &Board, p: Piece, Direction { drow, dcol }: Direction) -> Option<Board> {
+fn move_piece(board: &Board, p: Piece, dir: Direction) -> Option<Board> {
     let vec_diff = |v1: &Vec<(u8, u8)>, v2: &Vec<(u8, u8)>| -> Vec<(u8, u8)> {
         v1.iter()
             .filter(|elt| v2.iter().find(|el2| el2 == elt).is_none())
@@ -252,7 +251,7 @@ fn move_piece(board: &Board, p: Piece, Direction { drow, dcol }: Direction) -> O
     };
     let diff_occupied_pos = |i, j| {
         let current = occupied_pos(i, j);
-        let next = occupied_pos(i + drow, j + dcol);
+        let next = occupied_pos((i as i8 + dir.0) as u8, (j as i8 + dir.1) as u8);
         let next_occupied_pos = vec_diff(&next, &current);
         let next_vacant_pos = vec_diff(&current, &next);
         (next_occupied_pos, next_vacant_pos)
@@ -273,7 +272,11 @@ fn move_piece(board: &Board, p: Piece, Direction { drow, dcol }: Direction) -> O
         }
         None
     };
+    let is_dir_safe = |i, j| !((i == 0 && dir.0 == -1) || (j == 0 && dir.1 == -1));
     if let Some((i, j)) = find_pos() {
+        if !is_dir_safe(i, j) {
+            return None;
+        }
         let (next_occupied_pos, next_vacant_pos) = diff_occupied_pos(i, j);
         if can_move(&next_occupied_pos) {
             let mut board_copy = board.clone();
@@ -298,7 +301,12 @@ impl Puzzle<Board, Move> for Klotski {
     }
     fn possible_move(&self, b: &Board) -> Vec<Move> {
         let get_moves = |p: &Piece| -> Vec<Move> {
-            let directions = vec![];
+            let directions = vec![
+                Direction(0, 1),
+                Direction(0, -1),
+                Direction(1, 0),
+                Direction(-1, 0),
+            ];
             directions
                 .into_iter()
                 .filter_map(|dir| match move_piece(b, *p, dir) {
@@ -335,14 +343,10 @@ fn print_board(board: &Board) {
         }
         println!("")
     }
+    println!("")
 }
-fn main() {
-    let near = |n: &i32| vec![*n - 2, *n - 1, *n, *n + 1, *n + 2];
-    let sol = solve(near, |&x| x == 12, 0);
-    println!("sol {}", sol);
-    let sol_path = solve_path(near, |&x| x == 12, 0);
-    println!("sol path {:?}", sol_path);
 
+fn main() {
     let initial_board_simpler = [
         [C2, S, S, C1],
         [C0, S, S, C3],
@@ -357,6 +361,14 @@ fn main() {
         [V2, H, H, V3],
         [V2, C0, C1, V3],
         [C2, X, X, C3],
+    ];
+
+    let trivial_board = [
+        [X, S, S, X],
+        [X, S, S, X],
+        [X, X, X, X],
+        [X, X, X, X],
+        [X, X, X, X],
     ];
 
     let sol = solve_klotski(Board(initial_board_simpler));
