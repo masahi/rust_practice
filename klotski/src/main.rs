@@ -336,7 +336,7 @@ fn move_piece(board: &Board, piece: Piece, pos: Pos, dir: Direction) -> Option<M
             .all(|(i, j)| in_bound(*i, *j) && board.0[*i as usize][*j as usize] == X)
     };
     let is_dir_safe = |i, j| !((i == 0 && dir.0 == -1) || (j == 0 && dir.1 == -1));
-    if !is_dir_safe(pos.0, pos.1) {
+    if is_dir_safe(pos.0, pos.1) {
         let (next_occupied_pos, next_vacant_pos) = diff_occupied_pos(pos.0, pos.1);
         if can_move(&next_occupied_pos) {
             Some(Move {
@@ -449,7 +449,7 @@ fn main() {
         [X, X, X, X],
     ];
 
-    let sol = solve_klotski(Board(trivial_board));
+    let sol = solve_klotski(Board(initial_board));
     //sol.iter().for_each(print_board)
     print_board(&sol);
 }
