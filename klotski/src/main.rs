@@ -149,19 +149,21 @@ trait Puzzle<Conf, Move> {
     fn is_final(&self, c: &Conf) -> bool;
 }
 
-fn solve_puzzle<Conf, Move, P>(puzzle: P, init_conf: Conf) -> Vec<Conf>
+//fn solve_puzzle<Conf, Move, P>(puzzle: P, init_conf: Conf) -> Vec<Conf>
+fn solve_puzzle<Conf, Move, P>(puzzle: P, init_conf: Conf) -> Conf
 where
     Conf: Clone + Ord,
     P: Puzzle<Conf, Move> + Copy,
 {
     let rel = move |conf: &Conf| {
         let moves = puzzle.possible_move(conf);
+        //println!("possible moves: {}", moves.len());
         moves
             .into_iter()
             .map(|mv| puzzle.apply_move(conf, &mv))
             .collect()
     };
-    solve_path(rel, |c| puzzle.is_final(c), init_conf)
+    solve(rel, |c| puzzle.is_final(c), init_conf)
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -175,6 +177,17 @@ enum PieceKind {
 
 type Piece = (PieceKind, u8);
 
+fn string_of_piece((k, ind): Piece) -> String {
+    let ch = match k {
+        PieceKind::S => "S",
+        PieceKind::H => "H",
+        PieceKind::C => "C",
+        PieceKind::V => "V",
+        PieceKind::X => "X",
+    };
+    format!("({}, {})", ch, ind)
+}
+
 static X: Piece = (PieceKind::X, 0);
 static S: Piece = (PieceKind::S, 0);
 static H: Piece = (PieceKind::H, 0);
@@ -187,7 +200,7 @@ static V1: Piece = (PieceKind::V, 1);
 static V2: Piece = (PieceKind::V, 2);
 static V3: Piece = (PieceKind::V, 3);
 
-static ALL_PIECES: [Piece; 11] = [X, S, H, C0, C1, C2, C3, V0, V1, V2, V3];
+static ALL_PIECES: [Piece; 10] = [S, H, C0, C1, C2, C3, V0, V1, V2, V3];
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 struct Board([[Piece; 4]; 5]);
@@ -311,7 +324,10 @@ impl Puzzle<Board, Move> for Klotski {
                 .into_iter()
                 .filter_map(|dir| match move_piece(b, *p, dir) {
                     None => None,
-                    Some(b) => Some(Move(*p, dir, b)),
+                    Some(b) => {
+                        //println!("move {} to ({}, {})", string_of_piece(*p), dir.0, dir.1);
+                        Some(Move(*p, dir, b))
+                    }
                 })
                 .collect()
         };
@@ -322,21 +338,12 @@ impl Puzzle<Board, Move> for Klotski {
     }
 }
 
-fn solve_klotski(initial_board: Board) -> Vec<Board> {
+//fn solve_klotski(initial_board: Board) -> Vec<Board> {
+fn solve_klotski(initial_board: Board) -> Board {
     solve_puzzle(Klotski, initial_board)
 }
 
 fn print_board(board: &Board) {
-    let string_of_piece = |(k, ind)| {
-        let ch = match k {
-            PieceKind::S => "S",
-            PieceKind::H => "H",
-            PieceKind::C => "C",
-            PieceKind::V => "V",
-            PieceKind::X => "X",
-        };
-        format!("({}, {})", ch, ind)
-    };
     for i in 0..5 {
         for j in 0..4 {
             print!("{} ", string_of_piece(board.0[i][j]))
@@ -371,6 +378,7 @@ fn main() {
         [X, X, X, X],
     ];
 
-    let sol = solve_klotski(Board(initial_board_simpler));
-    sol.iter().for_each(print_board)
+    let sol = solve_klotski(Board(initial_board));
+    //sol.iter().for_each(print_board)
+    print_board(&sol);
 }
