@@ -188,7 +188,7 @@ static V3: Piece = (PieceKind::V, 3);
 
 static ALL_PIECES: [Piece; 11] = [X, S, H, C0, C1, C2, C3, V0, V1, V2, V3];
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 struct Board([[Piece; 4]; 5]);
 impl Ord for Board {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -231,28 +231,34 @@ struct Direction {
     drow: u8,
     dcol: u8,
 }
-type Move = (Piece, Direction, Board);
-
-fn is_final(b: &Board) -> bool {
-    b.0[3][1] == S && b.0[3][2] == S && b.0[4][1] == S && b.0[3][2] == S
-}
-
-fn apply_move((_, _, b): &Move) -> Board {
-    b.clone()
-}
+struct Move(Piece, Direction, Board);
 
 #[derive(Copy, Clone)]
 struct Klotski;
 
+fn move_piece(board: &Board, p: Piece, dir: Direction) -> Option<Board> {
+    None
+}
+
 impl Puzzle<Board, Move> for Klotski {
-    fn apply_move(&self, b: &Board, m: &Move) -> Board {
-        apply_move(m)
+    fn apply_move(&self, _: &Board, mv: &Move) -> Board {
+        mv.2.clone()
     }
     fn possible_move(&self, b: &Board) -> Vec<Move> {
-        vec![]
+        let get_moves = |p: &Piece| -> Vec<Move>{
+            let directions = vec![];
+            directions.into_iter().filter_map(|dir| {
+                match move_piece(b, *p, dir) {
+                    None => None,
+                    Some(b) => Some(Move(*p, dir, b))
+                }
+            })
+            .collect()
+        };
+        ALL_PIECES.iter().flat_map(get_moves).collect()
     }
     fn is_final(&self, b: &Board) -> bool {
-        is_final(b)
+        b.0[3][1] == S && b.0[3][2] == S && b.0[4][1] == S && b.0[3][2] == S
     }
 }
 
@@ -292,6 +298,15 @@ fn main() {
         [V1, V2, V3, V0],
         [X, X, X, X],
     ];
+
+    let initial_board = [
+        [V0, S, S, V1],
+        [V0, S, S, V1],
+        [V2, H, H, V3],
+        [V2, C0, C1, V3],
+        [C2, X, X, C3],
+    ];
+
     let sol = solve_klotski(Board(initial_board_simpler));
     sol.iter().for_each(print_board)
 }
