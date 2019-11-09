@@ -35,7 +35,7 @@ type Set<T> = BTreeSet<T>;
 
 fn archive_map<T, F>(r: F, (s, l): (Set<T>, Vec<T>)) -> (Set<T>, Vec<T>)
 where
-    F: Fn(&T) -> Vec<T> + Copy,
+    F: Fn(&T) -> Vec<T>,
     T: Clone + Ord,
 {
     l.into_iter().fold((s, vec![]), |(seen, new_elts), x| {
@@ -143,9 +143,21 @@ where
 }
 
 trait Puzzle<Conf, Move> {
-    fn apply_move(&self, c: Conf, m: Move) -> Conf;
-    fn possible_move(&self, c: Conf) -> Vec<Move>;
-    fn is_final(&self, c: Conf) -> bool;
+    fn apply_move(&self, c: &Conf, m: &Move) -> Conf;
+    fn possible_move(&self, c: &Conf) -> Vec<Move>;
+    fn is_final(&self, c: &Conf) -> bool;
+}
+
+fn solve_puzzle<Conf, Move, P>(puzzle: P, init_conf: Conf) -> Vec<Conf>
+where
+    Conf: Clone + Ord,
+    P: Puzzle<Conf, Move> + Copy
+{
+    let rel = move |conf: &Conf| {
+        let moves = puzzle.possible_move(conf);
+        moves.into_iter().map(|mv| puzzle.apply_move(conf, &mv)).collect()
+    };
+    solve_path(rel, |c| puzzle.is_final(c), init_conf)
 }
 
 fn main() {
