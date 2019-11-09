@@ -1,4 +1,4 @@
-// ported from https://github.com/masahi/ocaml_practice/blob/master/mooc/klotski.ml
+//ported from https://github.com/masahi/ocaml_practice/blob/master/mooc/klotski.ml
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
@@ -236,8 +236,60 @@ struct Move(Piece, Direction, Board);
 #[derive(Copy, Clone)]
 struct Klotski;
 
-fn move_piece(board: &Board, p: Piece, dir: Direction) -> Option<Board> {
-    None
+fn move_piece(board: &Board, p: Piece, Direction { drow, dcol }: Direction) -> Option<Board> {
+    let vec_diff = |v1: &Vec<(u8, u8)>, v2: &Vec<(u8, u8)>| -> Vec<(u8, u8)> {
+        v1.iter()
+            .filter(|elt| v2.iter().find(|el2| el2 == elt).is_none())
+            .cloned()
+            .collect()
+    };
+    let occupied_pos = |i, j| match p {
+        (PieceKind::S, _) => vec![(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)],
+        (PieceKind::H, _) => vec![(i, j), (i, j + 1)],
+        (PieceKind::V, _) => vec![(i, j), (i + 1, j)],
+        (PieceKind::C, _) => vec![(i, j)],
+        _ => vec![],
+    };
+    let diff_occupied_pos = |i, j| {
+        let current = occupied_pos(i, j);
+        let next = occupied_pos(i + drow, j + dcol);
+        let next_occupied_pos = vec_diff(&next, &current);
+        let next_vacant_pos = vec_diff(&current, &next);
+        (next_occupied_pos, next_vacant_pos)
+    };
+    let can_move = |next_occupied: &Vec<(u8, u8)>| {
+        let in_bound = |i, j| i < 5 && j < 4;
+        next_occupied
+            .iter()
+            .all(|(i, j)| in_bound(*i, *j) && board.0[*i as usize][*j as usize] == X)
+    };
+    let find_pos = || {
+        for i in 0..5 {
+            for j in 0..4 {
+                if board.0[i][j] == p {
+                    return Some((i as u8, j as u8));
+                }
+            }
+        }
+        None
+    };
+    if let Some((i, j)) = find_pos() {
+        let (next_occupied_pos, next_vacant_pos) = diff_occupied_pos(i, j);
+        if can_move(&next_occupied_pos) {
+            let mut board_copy = board.clone();
+            next_occupied_pos
+                .iter()
+                .for_each(|(i, j)| board_copy.0[*i as usize][*j as usize] = p);
+            next_vacant_pos
+                .iter()
+                .for_each(|(i, j)| board_copy.0[*i as usize][*j as usize] = X);
+            Some(board_copy)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 impl Puzzle<Board, Move> for Klotski {
@@ -245,15 +297,15 @@ impl Puzzle<Board, Move> for Klotski {
         mv.2.clone()
     }
     fn possible_move(&self, b: &Board) -> Vec<Move> {
-        let get_moves = |p: &Piece| -> Vec<Move>{
+        let get_moves = |p: &Piece| -> Vec<Move> {
             let directions = vec![];
-            directions.into_iter().filter_map(|dir| {
-                match move_piece(b, *p, dir) {
+            directions
+                .into_iter()
+                .filter_map(|dir| match move_piece(b, *p, dir) {
                     None => None,
-                    Some(b) => Some(Move(*p, dir, b))
-                }
-            })
-            .collect()
+                    Some(b) => Some(Move(*p, dir, b)),
+                })
+                .collect()
         };
         ALL_PIECES.iter().flat_map(get_moves).collect()
     }
@@ -269,11 +321,11 @@ fn solve_klotski(initial_board: Board) -> Vec<Board> {
 fn print_board(board: &Board) {
     let string_of_piece = |(k, ind)| {
         let ch = match k {
-                PieceKind::S => "S",
-                PieceKind::H => "H",
-                PieceKind::C => "C",
-                PieceKind::V => "V",
-                PieceKind::X => "X",
+            PieceKind::S => "S",
+            PieceKind::H => "H",
+            PieceKind::C => "C",
+            PieceKind::V => "V",
+            PieceKind::X => "X",
         };
         format!("({}, {})", ch, ind)
     };
