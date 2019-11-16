@@ -1,4 +1,8 @@
-#[derive(Debug, Clone)]
+use std::collections::BTreeMap;
+
+type Map<T> = BTreeMap<String, T>;
+
+#[derive(Debug, Clone, Copy)]
 enum Binop {
     Add,
     Sub,
@@ -10,7 +14,7 @@ enum Binop {
 enum Value {
     IntVal(i32),
     BoolVal(bool),
-    FunVal(String, Expr),
+    Closure(String, Expr, Map<Box<Value>>),
 }
 
 #[derive(Debug, Clone)]
@@ -23,8 +27,32 @@ enum Expr {
     Fun(String, Box<Expr>),
 }
 
-fn eval(expr: &Expr) -> Value {
-    Value::IntVal(0)
+fn eval(expr: &Expr, env: &mut Map<Value>) -> Option<Value> {
+    let mut eval_binop = |op, e1, e2| {
+        let apply_binop = move |v1, v2| match op {
+            Binop::Add => Value::IntVal(v1 + v2),
+            Binop::Sub => Value::IntVal(v1 + v2),
+            Binop::Mul => Value::IntVal(v1 * v2),
+            Binop::Eq => Value::BoolVal(v1 == v2),
+        };
+        let ev1 = eval(e1, env)?;
+        let ev2 = eval(e2, env)?;
+        match (op, ev1, ev2) {
+            (_, Value::IntVal(v1), Value::IntVal(v2)) => Some(apply_binop(v1, v2)),
+            (Binop::Eq, Value::BoolVal(b1), Value::BoolVal(b2)) => Some(Value::BoolVal(b1 == b2)),
+            _ => unreachable!(),
+        }
+    };
+    match expr {
+        Expr::Var(x) => {
+            let val = env.get(x)?;
+            Some(val.clone())
+        }
+        Expr::IntLit(n) => Some(Value::IntVal(*n)),
+        Expr::BoolLit(b) => Some(Value::BoolVal(*b)),
+        Expr::Binop(op, exp1, exp2) => eval_binop(*op, exp1, exp2),
+        _ => unreachable!(),
+    }
 }
 
 fn main() {
@@ -37,6 +65,7 @@ fn main() {
     let add_10 = Expr::Fun(var_name, body);
     println!("add_10: [{:?}", add_10);
     let app = Expr::App(Box::new(add_10), Box::new(Expr::IntLit(7)));
-    let result = eval(&app);
+    let mut env = Map::new();
+    let result = eval(&app, &mut env);
     println!("{:?}", result);
 }
